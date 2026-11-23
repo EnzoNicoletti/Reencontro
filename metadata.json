@@ -1,0 +1,6 @@
+{
+  "name": "Reencontro",
+  "description": "Plataforma comunitária para reunir animais perdidos e encontrados com suas famílias através de proximidade geográfica, correspondência inteligente e comunicação segura.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

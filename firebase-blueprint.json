@@ -1,0 +1,329 @@
+{
+  "entities": {
+    "UserPrivate": {
+      "title": "UserPrivate",
+      "description": "Private user account profile containing PII, accessible only to the owning user.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 160
+        },
+        "photoURL": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "city": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "displayName", "email", "createdAt", "updatedAt"]
+    },
+    "PublicProfile": {
+      "title": "PublicProfile",
+      "description": "Non-PII public profile displayed alongside animal reports and conversations.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "photoURL": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "neighborhood": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "displayName", "updatedAt"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Lost or found animal report with approximate location and geohash for proximity matching.",
+      "type": "object",
+      "properties": {
+        "reportId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "authorPhotoURL": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "type": {
+          "type": "string",
+          "enum": ["lost", "found"]
+        },
+        "animalName": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "species": {
+          "type": "string",
+          "enum": ["dog", "cat", "other"]
+        },
+        "breed": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "size": {
+          "type": "string",
+          "enum": ["small", "medium", "large"]
+        },
+        "colors": {
+          "type": "array",
+          "description": "Up to 5 coat colors."
+        },
+        "characteristics": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 800
+        },
+        "photoUrls": {
+          "type": "array",
+          "description": "Up to 5 photo URLs stored in Firebase Storage or local app assets."
+        },
+        "eventDate": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 40
+        },
+        "neighborhood": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "city": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lng": {
+          "type": "number"
+        },
+        "geohash": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 20
+        },
+        "observations": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "resolved"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "reportId",
+        "userId",
+        "authorName",
+        "type",
+        "animalName",
+        "species",
+        "size",
+        "colors",
+        "characteristics",
+        "photoUrls",
+        "eventDate",
+        "neighborhood",
+        "city",
+        "lat",
+        "lng",
+        "geohash",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "Secure two-participant chat thread linked to an animal report.",
+      "type": "object",
+      "properties": {
+        "conversationId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "reportId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "reportTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "reportType": {
+          "type": "string",
+          "enum": ["lost", "found"]
+        },
+        "reportPhotoUrl": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "participantIds": {
+          "type": "array",
+          "description": "Exactly 2 participant UIDs."
+        },
+        "participantNames": {
+          "type": "object",
+          "description": "Map of UID to displayName."
+        },
+        "lastMessage": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "lastSenderId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "conversationId",
+        "reportId",
+        "reportTitle",
+        "reportType",
+        "participantIds",
+        "participantNames",
+        "lastMessage",
+        "lastSenderId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Individual chat message inside a conversation subcollection.",
+      "type": "object",
+      "properties": {
+        "messageId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "conversationId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "readAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["messageId", "conversationId", "senderId", "content", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserPrivate" },
+      "description": "Private user account records containing PII."
+    },
+    "/publicProfiles/{userId}": {
+      "schema": { "$ref": "#/entities/PublicProfile" },
+      "description": "Public non-PII profile information for report authors."
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/Report" },
+      "description": "Lost and found animal reports."
+    },
+    "/conversations/{conversationId}": {
+      "schema": { "$ref": "#/entities/Conversation" },
+      "description": "Two-party conversation threads associated with a report."
+    },
+    "/conversations/{conversationId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/Message" },
+      "description": "Chat messages within a conversation."
+    }
+  }
+}

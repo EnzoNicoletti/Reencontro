@@ -1,0 +1,306 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Reusable Security Primitives ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isValidString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isValidOptionalString(val, maxLen) {
+      return val == null || (val is string && val.size() <= maxLen);
+    }
+
+    function isValidLatLng(lat, lng) {
+      return (lat is float || lat is int) && (lng is float || lng is int)
+        && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+    }
+
+    // --- Validation Blueprints ---
+    function isValidUserPrivate(data, userId) {
+      return data.keys().hasAll(['uid', 'displayName', 'email', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'email', 'photoURL', 'city', 'createdAt', 'updatedAt'])
+        && data.uid == userId
+        && data.uid == request.auth.uid
+        && isValidId(data.uid)
+        && isValidString(data.displayName, 1, 80)
+        && isValidString(data.email, 3, 160)
+        && (!('photoURL' in data) || isValidOptionalString(data.photoURL, 500))
+        && (!('city' in data) || isValidOptionalString(data.city, 100))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPublicProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'displayName', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'photoURL', 'neighborhood', 'updatedAt'])
+        && data.uid == userId
+        && data.uid == request.auth.uid
+        && isValidId(data.uid)
+        && isValidString(data.displayName, 1, 80)
+        && (!('photoURL' in data) || isValidOptionalString(data.photoURL, 500))
+        && (!('neighborhood' in data) || isValidOptionalString(data.neighborhood, 120))
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidReport(data, reportId) {
+      return data.keys().hasAll([
+          'reportId', 'userId', 'authorName', 'type', 'animalName', 'species',
+          'size', 'colors', 'characteristics', 'photoUrls', 'eventDate',
+          'neighborhood', 'city', 'lat', 'lng', 'geohash', 'status',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'reportId', 'userId', 'authorName', 'authorPhotoURL', 'type', 'animalName',
+          'species', 'breed', 'size', 'colors', 'characteristics', 'photoUrls',
+          'eventDate', 'neighborhood', 'city', 'lat', 'lng', 'geohash',
+          'observations', 'status', 'createdAt', 'updatedAt'
+        ])
+        && data.reportId == reportId
+        && isValidId(data.reportId)
+        && isValidId(data.userId)
+        && isValidString(data.authorName, 1, 80)
+        && (!('authorPhotoURL' in data) || isValidOptionalString(data.authorPhotoURL, 500))
+        && data.type in ['lost', 'found']
+        && isValidString(data.animalName, 0, 80)
+        && data.species in ['dog', 'cat', 'other']
+        && (!('breed' in data) || isValidOptionalString(data.breed, 80))
+        && data.size in ['small', 'medium', 'large']
+        && data.colors is list && data.colors.size() >= 1 && data.colors.size() <= 5
+        && data.colors[0] is string && data.colors[0].size() >= 1 && data.colors[0].size() <= 40
+        && isValidString(data.characteristics, 1, 800)
+        && data.photoUrls is list && data.photoUrls.size() <= 5
+        && (data.photoUrls.size() == 0 || (data.photoUrls[0] is string && data.photoUrls[0].size() <= 500))
+        && isValidString(data.eventDate, 4, 40)
+        && isValidString(data.neighborhood, 2, 120)
+        && isValidString(data.city, 2, 100)
+        && isValidLatLng(data.lat, data.lng)
+        && isValidString(data.geohash, 4, 20)
+        && (!('observations' in data) || isValidOptionalString(data.observations, 1000))
+        && data.status in ['active', 'resolved']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidConversation(data, conversationId) {
+      return data.keys().hasAll([
+          'conversationId', 'reportId', 'reportTitle', 'reportType',
+          'participantIds', 'participantNames', 'lastMessage', 'lastSenderId',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'conversationId', 'reportId', 'reportTitle', 'reportType', 'reportPhotoUrl',
+          'participantIds', 'participantNames', 'lastMessage', 'lastSenderId',
+          'createdAt', 'updatedAt'
+        ])
+        && data.conversationId == conversationId
+        && isValidId(data.conversationId)
+        && isValidId(data.reportId)
+        && isValidString(data.reportTitle, 1, 120)
+        && data.reportType in ['lost', 'found']
+        && (!('reportPhotoUrl' in data) || isValidOptionalString(data.reportPhotoUrl, 500))
+        && data.participantIds is list && data.participantIds.size() == 2
+        && data.participantIds[0] is string && data.participantIds[1] is string
+        && isValidId(data.participantIds[0]) && isValidId(data.participantIds[1])
+        && data.participantIds[0] != data.participantIds[1]
+        && data.participantNames is map && data.participantNames.keys().size() <= 2
+        && isValidString(data.lastMessage, 0, 500)
+        && isValidId(data.lastSenderId)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMessage(data, conversationId, messageId) {
+      return data.keys().hasAll(['messageId', 'conversationId', 'senderId', 'content', 'createdAt'])
+        && data.keys().hasOnly(['messageId', 'conversationId', 'senderId', 'content', 'createdAt', 'readAt'])
+        && data.messageId == messageId
+        && data.conversationId == conversationId
+        && isValidId(data.messageId)
+        && isValidId(data.conversationId)
+        && isValidId(data.senderId)
+        && isValidString(data.content, 1, 1000)
+        && data.createdAt is timestamp
+        && (!('readAt' in data) || data.readAt == null || data.readAt is timestamp);
+    }
+
+    // --- Collection Rules ---
+
+    // 1. Private User Accounts (PII strictly owner-only, no list)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserPrivate(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserPrivate(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'city', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // 2. Public Profiles (Non-PII attribution only)
+    match /publicProfiles/{userId} {
+      allow get: if isValidId(userId);
+      allow list: if false;
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidPublicProfile(incoming(), userId)
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidPublicProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'neighborhood', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // 3. Animal Reports
+    match /reports/{reportId} {
+      allow get: if isValidId(reportId) && (
+        existing().status == 'active'
+        || (isSignedIn() && existing().userId == request.auth.uid)
+      );
+      allow list: if existing().status == 'active'
+        || (isSignedIn() && existing().userId == request.auth.uid);
+
+      allow create: if isVerifiedUser()
+        && isValidId(reportId)
+        && isValidReport(incoming(), reportId)
+        && incoming().userId == request.auth.uid
+        && incoming().status == 'active'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser()
+        && isValidId(reportId)
+        && isValidReport(incoming(), reportId)
+        && existing().userId == request.auth.uid
+        && incoming().userId == existing().userId
+        && incoming().reportId == existing().reportId
+        && incoming().type == existing().type
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action 1: Owner edits details while report is active
+          (existing().status == 'active'
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'animalName', 'species', 'breed', 'size', 'colors', 'characteristics',
+              'photoUrls', 'eventDate', 'neighborhood', 'city', 'lat', 'lng',
+              'geohash', 'observations', 'authorName', 'authorPhotoURL', 'updatedAt'
+            ]))
+          ||
+          // Action 2: Owner marks animal as reunited (terminal state lock)
+          (existing().status == 'active'
+            && incoming().status == 'resolved'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+        );
+
+      allow delete: if isVerifiedUser()
+        && isValidId(reportId)
+        && existing().userId == request.auth.uid;
+    }
+
+    // 4. Conversations
+    match /conversations/{conversationId} {
+      allow get: if isSignedIn()
+        && isValidId(conversationId)
+        && request.auth.uid in existing().participantIds;
+
+      allow list: if isSignedIn()
+        && request.auth.uid in existing().participantIds;
+
+      allow create: if isVerifiedUser()
+        && isValidId(conversationId)
+        && isValidConversation(incoming(), conversationId)
+        && request.auth.uid in incoming().participantIds
+        && incoming().lastSenderId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/reports/$(incoming().reportId));
+
+      allow update: if isVerifiedUser()
+        && isValidId(conversationId)
+        && isValidConversation(incoming(), conversationId)
+        && request.auth.uid in existing().participantIds
+        && incoming().conversationId == existing().conversationId
+        && incoming().reportId == existing().reportId
+        && incoming().participantIds == existing().participantIds
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().lastSenderId == request.auth.uid
+        && incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'lastSenderId', 'updatedAt']);
+
+      allow delete: if false;
+
+      // 5. Messages Subcollection (Master Gate via parent conversation)
+      match /messages/{messageId} {
+        allow get: if isSignedIn()
+          && isValidId(conversationId)
+          && isValidId(messageId)
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+
+        allow list: if isSignedIn()
+          && isValidId(conversationId)
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+
+        allow create: if isVerifiedUser()
+          && isValidId(conversationId)
+          && isValidId(messageId)
+          && isValidMessage(incoming(), conversationId, messageId)
+          && incoming().senderId == request.auth.uid
+          && incoming().createdAt == request.time
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
+          && getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.updatedAt == request.time;
+
+        allow update: if isVerifiedUser()
+          && isValidId(conversationId)
+          && isValidId(messageId)
+          && isValidMessage(incoming(), conversationId, messageId)
+          && existing().senderId != request.auth.uid
+          && incoming().senderId == existing().senderId
+          && incoming().content == existing().content
+          && incoming().createdAt == existing().createdAt
+          && incoming().diff(existing()).affectedKeys().hasOnly(['readAt'])
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+
+        allow delete: if false;
+      }
+    }
+  }
+}
